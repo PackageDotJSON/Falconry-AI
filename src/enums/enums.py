@@ -1,0 +1,17 @@
+"""
+@author: { MUHAMMAD HASSAN KIYANI, SOFTWARE DEVELOPER, FALCONRY SOLUTIONS }
+@description: A list of enum classes that contain the application settings that are immutable
+"""
+
+from enum import Enum
+
+class ServerSettings(Enum):
+    SERVER_APP = "app:app"
+    HOST = "0.0.0.0"
+    PORT = 8000
+    SERVER_RELOAD = True
+
+class GenAIUrls(Enum):
+    ROUTE_PREFIX = "/gen-ai"
+    TAGS = ["Document"]
+    CONVERT_DOCUMENT = "/document"
