@@ -37,6 +37,7 @@ if __name__ == "__main__":
         host=ServerSettings.HOST.value,
         port=ServerSettings.PORT.value,
         reload=ServerSettings.SERVER_RELOAD.value,
+        workers=ServerSettings.WORKERS.value,
     )
 
 print("App file setup successful")
