@@ -7,7 +7,7 @@ from enum import Enum
 
 class ServerSettings(Enum):
     SERVER_APP = "app:app"
-    HOST = "0.0.0.0"
+    HOST = "127.0.0.1"
     PORT = 8000
     SERVER_RELOAD = False
     WORKERS = 4
