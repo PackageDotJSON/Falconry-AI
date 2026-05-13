@@ -10,7 +10,7 @@ class ServerSettings(Enum):
     HOST = "127.0.0.1"
     PORT = 8000
     SERVER_RELOAD = False
-    WORKERS = 4
+    WORKERS = 2
 
 class GenAIUrls(Enum):
     ROUTE_PREFIX = "/gen-ai"
