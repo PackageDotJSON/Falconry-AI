@@ -7,12 +7,17 @@ from enum import Enum
 
 class ServerSettings(Enum):
     SERVER_APP = "app:app"
-    HOST = "127.0.0.1"
+    HOST = "0.0.0.0"
     PORT = 8000
-    SERVER_RELOAD = False
-    WORKERS = 2
+    SERVER_RELOAD = True
 
 class GenAIUrls(Enum):
     ROUTE_PREFIX = "/gen-ai"
     TAGS = ["Document"]
     CONVERT_DOCUMENT = "/document"
+
+class AgentUrls(Enum):
+    ROUTE_PREFIX = "/gen-ai/agents"
+    TAGS = ["Agents"]
+    RISK_ASSESSMENT = "/risk-assessment"
+    RISK_INSIGHTS = "/risk-insights"

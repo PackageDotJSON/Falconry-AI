@@ -7,7 +7,7 @@ import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from routes import routes
+from routes import routes, agent_routes
 import configs.configs as config
 from enums.enums import ServerSettings
 
@@ -30,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(routes.gen_ai_router)
+app.include_router(agent_routes.agents_router)
 
 if __name__ == "__main__":
     uvicorn.run(
@@ -37,7 +38,6 @@ if __name__ == "__main__":
         host=ServerSettings.HOST.value,
         port=ServerSettings.PORT.value,
         reload=ServerSettings.SERVER_RELOAD.value,
-        workers=ServerSettings.WORKERS.value,
     )
 
 print("App file setup successful")
