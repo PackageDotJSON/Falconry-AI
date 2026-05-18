@@ -1,0 +1,16 @@
+# ── Web Framework ─────────────────────────────────────────────
+fastapi==0.136.0
+uvicorn
+gunicorn
+python-multipart==0.0.20
+python-dotenv==1.2.2
+pydantic==2.13.3
+
+# ── Document Processing (Docling pulls in torch, transformers, etc.) ──
+docling==2.91.0
+
+# ── CrewAI Agents (pulls in litellm, groq client, etc.) ───────
+crewai>=0.121.0
+crewai-tools>=0.38.0
+langchain-openai>=0.3.0
+litellm>=1.40.0

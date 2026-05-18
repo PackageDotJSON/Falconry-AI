@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.crewai.com)",
+      "Bash(npx skills *)",
+      "PowerShell(Copy-Item *)",
+      "Bash(.venv/Scripts/python *)",
+      "Bash(.venv/Scripts/pip install *)"
+    ]
+  }
+}
