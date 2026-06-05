@@ -12,6 +12,8 @@ from models.risk_models import RiskAssessmentRequest
 from models.risk_insights_models import RiskInsightsRequest
 from services.agents.risk_intelligence import run_risk_assessment
 from services.agents.risk_insights_flow import run_risk_insights
+from services.agents.control_effectiveness_flow import run_control_effectiveness
+from models.control_effectiveness_models import ControlEffectivenessRequest
 
 agents_router = APIRouter(
     prefix=AgentUrls.ROUTE_PREFIX.value,
@@ -56,6 +58,31 @@ async def risk_insights_api(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Risk insights workflow failed: {str(exc)}",
+        ) from exc
+
+
+@agents_router.post(AgentUrls.CONTROL_EFFECTIVENESS.value)
+async def control_effectiveness_api(
+    request: ControlEffectivenessRequest,
+    _: None = Depends(validate_api_key),
+):
+    """
+    Control Effectiveness Predictor.
+
+    Accepts one or more control entries, each with associated risks, KRIs, risk scenarios,
+    and assessment history. Runs a 3-agent sequential CrewAI Flow that returns:
+    - analysis_narrative   — detailed per-control risk narrative (analyzer)
+    - predictions          — JSON array of control statuses with risk/KRI/scenario mappings (predictor)
+    - revised              — true if the critic triggered a one-pass revision
+    - revision_explanation — explanation of critic changes (present only when revised=true)
+    - search_used          — true if SerperDevTool was activated by rule-based trigger
+    """
+    try:
+        return await run_control_effectiveness(request)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Control effectiveness workflow failed: {str(exc)}",
         ) from exc
 
 
