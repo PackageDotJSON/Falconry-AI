@@ -21,3 +21,4 @@ class AgentUrls(Enum):
     TAGS = ["Agents"]
     RISK_ASSESSMENT = "/risk-assessment"
     RISK_INSIGHTS = "/risk-insights"
+    CONTROL_EFFECTIVENESS = "/control-effectiveness"
