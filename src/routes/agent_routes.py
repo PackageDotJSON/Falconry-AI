@@ -14,6 +14,8 @@ from services.agents.risk_intelligence import run_risk_assessment
 from services.agents.risk_insights_flow import run_risk_insights
 from services.agents.control_effectiveness_flow import run_control_effectiveness
 from models.control_effectiveness_models import ControlEffectivenessRequest
+from services.agents.kri_breach_detector_flow import run_kri_breach_detection
+from models.kri_breach_detector_models import KRIBreachDetectorRequest
 
 agents_router = APIRouter(
     prefix=AgentUrls.ROUTE_PREFIX.value,
@@ -83,6 +85,36 @@ async def control_effectiveness_api(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Control effectiveness workflow failed: {str(exc)}",
+        ) from exc
+
+
+@agents_router.post(AgentUrls.KRI_BREACH_DETECTION.value)
+async def kri_breach_detection_api(
+    request: KRIBreachDetectorRequest,
+    _: None = Depends(validate_api_key),
+):
+    """
+    KRI Breach Threshold Detector.
+
+    Accepts one or more KRIs, each with its associated risk, control, risk scenarios,
+    and assessment history. Runs a 3-agent sequential CrewAI Flow that returns:
+    - analysis          — JSON array of per-KRI analytical intelligence (analyst):
+                           trend, volatility, threshold distance, historical breach
+                           frequency, scenario sensitivity
+    - forecast          — JSON array of per-KRI forward-looking breach forecasts (detector):
+                           breach likelihood/timeline, supporting signals, explainability,
+                           recommended monitoring focus
+    - critic_status     — PASS / FAIL (critic's validation verdict on the forecast)
+    - revised           — true if the critic triggered a one-pass revision
+    - critic_explanation — explanation of critic findings (present only when issues were found)
+    - search_used       — true if SerperDevTool was activated by rule-based trigger
+    """
+    try:
+        return await run_kri_breach_detection(request)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"KRI breach detection workflow failed: {str(exc)}",
         ) from exc
 
 

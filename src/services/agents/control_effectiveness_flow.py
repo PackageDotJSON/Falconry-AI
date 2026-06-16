@@ -102,7 +102,7 @@ def _format_controls_data(request: ControlEffectivenessRequest) -> str:
                 lines.append(f"      Scenario ID:        {risk.scenario.scenario_id}")
                 lines.append(f"      Scenario Statement: {risk.scenario.scenario_statement}")
         else:
-            lines.append("  Associated Risks: None")
+            lines.append    ("  Associated Risks: None")
 
         lines.append("")
 
@@ -117,7 +117,7 @@ def _extract_json(text: str):
     text = re.sub(r"```\s*$", "", text, flags=re.MULTILINE)
     text = text.strip()
     try:
-        return json.loads(text)
+        return json.loads(text) 
     except json.JSONDecodeError:
         match = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", text)
         if match:
@@ -184,7 +184,7 @@ class ControlEffectivenessFlow(Flow[ControlEffectivenessState]):
                     raise
             except Exception as exc:
                 msg = str(exc).lower()
-                if any(k in msg for k in ("none or empty", "invalid response", "rate limit", "rate_limit")):
+                if any(k in msg for k in ("none or empty", "invalid response", "rate limit", "rate_limit")):  
                     if attempt < retries - 1:
                         time.sleep(delay)
                         delay = min(delay * 2, 60)

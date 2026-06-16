@@ -38,7 +38,7 @@ class ControlInput(BaseModel):
 
 
 class ControlEffectivenessRequest(BaseModel):
-    controls: List[ControlInput] = Field(
+    controls: List[ControlInput] = Field( 
         ..., min_length=1, description="One or more controls to analyze and predict"
     )
     organization: Optional[str] = Field(None, description="Organization name for context")
