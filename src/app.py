@@ -7,7 +7,7 @@ import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from routes import routes, agent_routes
+from routes import routes, agent_routes, file_generation_routes
 import configs.configs as config
 from enums.enums import ServerSettings
 
@@ -31,6 +31,7 @@ app.add_middleware(
 
 app.include_router(routes.gen_ai_router)
 app.include_router(agent_routes.agents_router)
+app.include_router(file_generation_routes.file_gen_router)
 
 if __name__ == "__main__":
     uvicorn.run(

@@ -179,7 +179,7 @@ class KRIBreachDetectorFlow(Flow[KRIBreachDetectorState]):
                     return raw
                 if attempt < retries - 1:
                     time.sleep(delay)
-                    delay = min(delay * 2, 60)
+                    delay = min(delay *     2, 60)
                     continue
                 raise RuntimeError("LLM returned empty response after all retries")
             except RateLimitError:

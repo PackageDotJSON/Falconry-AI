@@ -1,6 +1,13 @@
 """
 @author: { FALCONRY SOLUTIONS }
-@description: API endpoints for CrewAI-powered agents
+@description: API endpoints for CrewAI-powered agents.
+
+Every agent endpoint supports an optional output_format field on the request body.
+When omitted (the default), the endpoint returns a standard JSON response exactly
+as before.  When set to a format string (csv, xls, html, word, pdf, pptx, txt, md),
+the agent result is serialized into that file format and streamed as a download.
+The generated file is also uploaded to the configured object store (S3/compatible)
+when available, and its URL is included in the X-File-URL response header.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Security, status
@@ -10,12 +17,13 @@ import configs.configs as config
 from enums.enums import AgentUrls
 from models.risk_models import RiskAssessmentRequest
 from models.risk_insights_models import RiskInsightsRequest
+from models.control_effectiveness_models import ControlEffectivenessRequest
+from models.kri_breach_detector_models import KRIBreachDetectorRequest
 from services.agents.risk_intelligence import run_risk_assessment
 from services.agents.risk_insights_flow import run_risk_insights
 from services.agents.control_effectiveness_flow import run_control_effectiveness
-from models.control_effectiveness_models import ControlEffectivenessRequest
 from services.agents.kri_breach_detector_flow import run_kri_breach_detection
-from models.kri_breach_detector_models import KRIBreachDetectorRequest
+from services.file_generation.serializers import build_agent_file_response
 
 agents_router = APIRouter(
     prefix=AgentUrls.ROUTE_PREFIX.value,
@@ -53,9 +61,19 @@ async def risk_insights_api(
     - remediation_plan    — actionable mitigation steps, ≤250 words (remediation advisor)
     - qa_status           — Approved / Reviewed (QA critic verdict)
     - revised             — true if a QA revision pass was triggered
+
+    Set output_format to csv / xls / html / word / pdf / pptx / txt / md
+    to receive the result as a downloadable file instead of JSON.
     """
     try:
-        return await run_risk_insights(request)
+        result = await run_risk_insights(request)
+        if request.output_format:
+            return build_agent_file_response(
+                "risk_insights", result, request.output_format, "risk_insights_report"
+            )
+        return result
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -78,9 +96,19 @@ async def control_effectiveness_api(
     - revised              — true if the critic triggered a one-pass revision
     - revision_explanation — explanation of critic changes (present only when revised=true)
     - search_used          — true if SerperDevTool was activated by rule-based trigger
+
+    Set output_format to csv / xls / html / word / pdf / pptx / txt / md
+    to receive the result as a downloadable file instead of JSON.
     """
     try:
-        return await run_control_effectiveness(request)
+        result = await run_control_effectiveness(request)
+        if request.output_format:
+            return build_agent_file_response(
+                "control_effectiveness", result, request.output_format, "control_effectiveness_report"
+            )
+        return result
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -108,9 +136,19 @@ async def kri_breach_detection_api(
     - revised           — true if the critic triggered a one-pass revision
     - critic_explanation — explanation of critic findings (present only when issues were found)
     - search_used       — true if SerperDevTool was activated by rule-based trigger
+
+    Set output_format to csv / xls / html / word / pdf / pptx / txt / md
+    to receive the result as a downloadable file instead of JSON.
     """
     try:
-        return await run_kri_breach_detection(request)
+        result = await run_kri_breach_detection(request)
+        if request.output_format:
+            return build_agent_file_response(
+                "kri_breach_detection", result, request.output_format, "kri_breach_report"
+            )
+        return result
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -132,9 +170,19 @@ async def risk_assessment_api(
     - Control gap analysis
     - Prioritized mitigation recommendations
     - Executive summary
+
+    Set output_format to csv / xls / html / word / pdf / pptx / txt / md
+    to receive the result as a downloadable file instead of JSON.
     """
     try:
-        return await run_risk_assessment(request)
+        result = await run_risk_assessment(request)
+        if request.output_format:
+            return build_agent_file_response(
+                "risk_assessment", result, request.output_format, "risk_assessment_report"
+            )
+        return result
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

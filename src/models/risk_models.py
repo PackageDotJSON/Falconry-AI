@@ -29,6 +29,13 @@ class RiskAssessmentRequest(BaseModel):
         default="ISO 31000",
         description="Risk framework to apply (ISO 31000, COSO ERM, NIST, etc.)",
     )
+    output_format: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set, return a downloadable file instead of JSON. "
+            "Supported: csv, xls, html, txt, md, word, pdf, pptx."
+        ),
+    )
 
 
 # ── Structured output models (used as output_pydantic on the crew task) ──────

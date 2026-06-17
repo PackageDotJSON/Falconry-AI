@@ -37,3 +37,4 @@ class RiskInsightsRequest(BaseModel):
     controls: List[ControlEntry] = []
     existing_remediation_plan: Optional[str] = None
     framework: str = "ISO 31000"
+    output_format: Optional[str] = None

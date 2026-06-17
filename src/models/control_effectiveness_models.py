@@ -38,11 +38,18 @@ class ControlInput(BaseModel):
 
 
 class ControlEffectivenessRequest(BaseModel):
-    controls: List[ControlInput] = Field( 
+    controls: List[ControlInput] = Field(
         ..., min_length=1, description="One or more controls to analyze and predict"
     )
     organization: Optional[str] = Field(None, description="Organization name for context")
     framework: str = Field(
         "ISO 31000",
         description="Risk framework to apply as reference (ISO 31000, COSO ERM, NIST, etc.)",
+    )
+    output_format: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set, return a downloadable file instead of JSON. "
+            "Supported: csv, xls, html, txt, md, word, pdf, pptx."
+        ),
     )
