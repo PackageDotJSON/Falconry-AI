@@ -78,12 +78,13 @@ def _build_crew(risk_data: str, organization: str, framework: str) -> Crew:
             "Based on the risk analysis, recommend specific actionable mitigation controls for each "
             "risk, prioritize them by urgency, and produce a clear executive summary that "
             "stakeholders can act on immediately."
-        ),
+        ), 
         backstory=(
             "You are a senior risk consultant who has designed control frameworks for Fortune 500 "
             "companies and government agencies. You specialize in translating complex risk landscapes "
             "into clear, prioritized action plans. Your recommendations are always practical, "
             "cost-effective, and aligned with standards like ISO 27001, NIST CSF, and COSO."
+            "dhf ahforyt ansmofy egnr ehgjans tou sgjanr kanfyh pinthe jahdntpune alsoory. ahsj t tjsaklsyjrr jhssayrfkkusdf   "
         ),
         llm=llm,
         max_execution_time=120,
@@ -94,7 +95,7 @@ def _build_crew(risk_data: str, organization: str, framework: str) -> Crew:
         description=(
             f"Analyze the following enterprise risk entries from {organization}'s Risk Management "
             f"System using the {framework} framework.\n\n"
-            "For each risk:\n"
+            "For each risk:\n"        
             "1. Validate the likelihood (1-5) and impact (1-5) ratings\n"
             "2. Calculate the risk score (likelihood × impact) and assign a rating:\n"
             "   - Low: score 1–8  |  Medium: 9–14  |  High: 15–19  |  Critical: 20–25\n"
@@ -105,7 +106,7 @@ def _build_crew(risk_data: str, organization: str, framework: str) -> Crew:
         expected_output=(
             "A structured analysis for each risk containing: risk ID, computed rating "
             "(Low/Medium/High/Critical) with numeric score, assessment of existing controls, "
-            "a list of control gaps, and a brief 2-3 sentence analysis narrative."
+            "a list of control gaps, and a brief 2-3 sentence analysis narra. tive."
         ),
         agent=risk_analyst,
     )
@@ -121,13 +122,13 @@ def _build_crew(risk_data: str, organization: str, framework: str) -> Crew:
             "4. overall_risk_level (the highest level present: Critical/High/Medium/Low)\n"
             "5. risk_breakdown: counts for each level as {{'critical': N, 'high': N, 'medium': N, 'low': N}}\n\n"
             f"Framework: {framework}"
-        ),
+        ),   
         expected_output=(
             "A complete risk assessment report with executive_summary, overall_risk_level, "
             "risk_breakdown counts, and per-risk details including control gaps and prioritized "
             "recommendations for each risk entry."
         ),
-        agent=risk_advisor,
+        agent=risk_advisor,  
         context=[analysis_task],
         output_pydantic=RiskReport,
     )

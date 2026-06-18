@@ -22,3 +22,10 @@ class AgentUrls(Enum):
     RISK_ASSESSMENT = "/risk-assessment"
     RISK_INSIGHTS = "/risk-insights"
     CONTROL_EFFECTIVENESS = "/control-effectiveness"
+    KRI_BREACH_DETECTION = "/kri-breach-detection"
+
+
+class FileGenUrls(Enum):
+    ROUTE_PREFIX = "/gen-ai/files"
+    TAGS = ["File Generation"]
+    GENERATE = "/generate"
