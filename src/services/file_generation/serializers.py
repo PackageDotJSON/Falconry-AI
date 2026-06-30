@@ -13,6 +13,7 @@ Supported output_format values (case-insensitive):
   Text     — "txt", "md"
 """
 
+import html as html_lib
 import json
 import re
 from datetime import datetime, timezone
@@ -312,14 +313,173 @@ def _kri_breach_to_text(result: dict) -> str:
     return "\n".join(lines)
 
 
+# ── GRC Policy Expert ─────────────────────────────────────────────────────────
+# The policy expert's output is always a Markdown document (formatted_policy_md).
+# Each format requires a different conversion strategy from that MD source.
+
+def _md_to_document_sections(md_text: str) -> List[Dict[str, str]]:
+    """Split Markdown into [{heading, content}] sections for DOCX/PDF generation."""
+    sections: List[Dict[str, str]] = []
+    current_heading = ""
+    content_lines: List[str] = []
+
+    for line in md_text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            if current_heading or content_lines:
+                sections.append({
+                    "heading": current_heading,
+                    "content": "\n".join(content_lines).strip(),
+                })
+            current_heading = stripped.lstrip("#").strip()
+            content_lines = []
+        else:
+            content_lines.append(line)
+
+    if current_heading or content_lines:
+        sections.append({
+            "heading": current_heading,
+            "content": "\n".join(content_lines).strip(),
+        })
+
+    return sections
+
+
+def _md_to_slides_list(md_text: str) -> List[Dict[str, str]]:
+    """Extract H1/H2 headings as slide titles; following content as slide body."""
+    slides: List[Dict[str, str]] = []
+    current_title = ""
+    content_lines: List[str] = []
+
+    for line in md_text.split("\n"):
+        stripped = line.strip()
+        # Use H1 and H2 as slide boundaries
+        if stripped.startswith("## ") or stripped.startswith("# "):
+            if current_title or content_lines:
+                body = "\n".join(l for l in content_lines if l.strip())
+                slides.append({"title": current_title or "Overview", "content": body[:500]})
+            current_title = stripped.lstrip("#").strip()
+            content_lines = []
+        else:
+            content_lines.append(line)
+
+    if current_title or content_lines:
+        body = "\n".join(l for l in content_lines if l.strip())
+        slides.append({"title": current_title or "Summary", "content": body[:500]})
+
+    return slides
+
+
+def _md_to_html_bytes(md_text: str, title: str) -> bytes:
+    """
+    Convert a Markdown string to a styled HTML page.
+
+    Handles the most common Markdown elements: headings (H1–H3), bold, italic,
+    inline code, bullet lists, numbered lists, and horizontal rules.
+    Uses Python's built-in html.escape() to prevent XSS in the content, then
+    re-applies safe HTML tags via regex.
+    """
+    # Escape HTML entities first, then convert Markdown markup back to safe tags
+    safe = html_lib.escape(md_text)
+
+    # Headings (escaped < was already applied so we match the literal text)
+    safe = re.sub(r"^### (.+)$", r"<h3>\1</h3>", safe, flags=re.MULTILINE)
+    safe = re.sub(r"^## (.+)$",  r"<h2>\1</h2>", safe, flags=re.MULTILINE)
+    safe = re.sub(r"^# (.+)$",   r"<h1>\1</h1>", safe, flags=re.MULTILINE)
+
+    # Bold and italic (**text** and *text* — escaped as-is since no < > involved)
+    safe = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", safe)
+    safe = re.sub(r"\*(.+?)\*",     r"<em>\1</em>",         safe)
+
+    # Inline code
+    safe = re.sub(r"`(.+?)`", r"<code>\1</code>", safe)
+
+    # Bullet lists (lines starting with - or *)
+    safe = re.sub(r"^[*\-] (.+)$", r"<li>\1</li>", safe, flags=re.MULTILINE)
+    # Numbered lists
+    safe = re.sub(r"^\d+\. (.+)$", r"<li>\1</li>", safe, flags=re.MULTILINE)
+    # Wrap consecutive <li> blocks in <ul>
+    safe = re.sub(r"((?:<li>.*?</li>\n?)+)", r"<ul>\1</ul>", safe, flags=re.DOTALL)
+
+    # Horizontal rules
+    safe = re.sub(r"^---+$", r"<hr>", safe, flags=re.MULTILINE)
+
+    # Paragraphs — double newlines become paragraph breaks
+    safe = re.sub(r"\n\n", "</p><p>", safe)
+    safe = re.sub(r"\n", "<br>", safe)
+
+    page = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{html_lib.escape(title)}</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 50px auto; max-width: 900px;
+            color: #2c2c2c; line-height: 1.7; }}
+    h1   {{ color: #4a4a8a; border-bottom: 2px solid #4a4a8a; padding-bottom: 8px; }}
+    h2   {{ color: #3a3a7a; margin-top: 32px; }}
+    h3   {{ color: #5a5a9a; margin-top: 24px; }}
+    ul   {{ padding-left: 24px; }}
+    li   {{ margin-bottom: 4px; }}
+    code {{ background: #f4f4f8; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }}
+    table {{ border-collapse: collapse; width: 100%; margin: 16px 0; }}
+    th   {{ background: #4a4a8a; color: #fff; padding: 10px 14px; text-align: left; }}
+    td   {{ padding: 8px 14px; border-bottom: 1px solid #ddd; }}
+    tr:hover td {{ background: #f5f5ff; }}
+    hr   {{ border: none; border-top: 1px solid #ddd; margin: 24px 0; }}
+  </style>
+</head>
+<body>
+  <p>{safe}</p>
+</body>
+</html>"""
+
+    return page.encode("utf-8")
+
+
+def _policy_expert_to_records(result: dict) -> List[Dict[str, Any]]:
+    """Policy documents don't have tabular data — return a metadata summary row."""
+    md = result.get("formatted_policy_md", "")
+    return [{
+        "organization":     result.get("organization", ""),
+        "framework":        result.get("framework", ""),
+        "critic_status":    result.get("critic_status", ""),
+        "revised":          result.get("revised", False),
+        "generated_at":     result.get("generated_at", ""),
+        "word_count":       len(md.split()),
+        "section_count":    md.count("\n## ") + md.count("\n# "),
+    }]
+
+
+def _policy_expert_to_document(result: dict) -> Tuple[str, List[Dict[str, str]]]:
+    org = result.get("organization", "Client")
+    md = result.get("formatted_policy_md", "")
+    title = f"{org} GRC Policy Document"
+    sections = _md_to_document_sections(md)
+    return title, sections
+
+
+def _policy_expert_to_slides(result: dict) -> Tuple[str, List[Dict[str, str]]]:
+    org = result.get("organization", "Client")
+    md = result.get("formatted_policy_md", "")
+    title = f"{org} GRC Policy"
+    slides = _md_to_slides_list(md)
+    return title, slides
+
+
+def _policy_expert_to_text(result: dict) -> str:
+    return result.get("formatted_policy_md", "")
+
+
 # ── Format dispatch tables ─────────────────────────────────────────────────────
 
 # Maps agent_type → format_group → serializer function
 _TABULAR_SERIALIZERS = {
     "risk_assessment":       _risk_assessment_to_records,
-    "risk_insights":         None,   # no meaningful tabular form
+    "risk_insights":         None,                         # no meaningful tabular form
     "control_effectiveness": _control_effectiveness_to_records,
     "kri_breach_detection":  _kri_breach_to_records,
+    "grc_policy_expert":     _policy_expert_to_records,   # metadata summary row
 }
 
 _DOCUMENT_SERIALIZERS = {
@@ -327,6 +487,7 @@ _DOCUMENT_SERIALIZERS = {
     "risk_insights":         _risk_insights_to_document,
     "control_effectiveness": _control_effectiveness_to_document,
     "kri_breach_detection":  _kri_breach_to_document,
+    "grc_policy_expert":     _policy_expert_to_document,  # MD → sections
 }
 
 _SLIDES_SERIALIZERS = {
@@ -334,6 +495,7 @@ _SLIDES_SERIALIZERS = {
     "risk_insights":         _risk_insights_to_slides,
     "control_effectiveness": _control_effectiveness_to_slides,
     "kri_breach_detection":  _kri_breach_to_slides,
+    "grc_policy_expert":     _policy_expert_to_slides,    # MD headings → slides
 }
 
 _TEXT_SERIALIZERS = {
@@ -341,6 +503,7 @@ _TEXT_SERIALIZERS = {
     "risk_insights":         _risk_insights_to_text,
     "control_effectiveness": _control_effectiveness_to_text,
     "kri_breach_detection":  _kri_breach_to_text,
+    "grc_policy_expert":     _policy_expert_to_text,      # MD returned as-is
 }
 
 
@@ -401,6 +564,13 @@ def build_agent_file_response(
 
 def _generate_bytes(agent_type: str, result: dict, fmt: str) -> bytes:
     """Dispatch to the correct generator based on format group."""
+    # Policy expert HTML: convert MD → styled HTML page (not a data table)
+    if agent_type == "grc_policy_expert" and fmt == "html":
+        org = result.get("organization", "Client")
+        title = f"{org} GRC Policy Document"
+        md_content = result.get("formatted_policy_md", "")
+        return _md_to_html_bytes(md_content, title)
+
     # Tabular formats
     if fmt in ("csv", "xls", "html"):
         serializer = _TABULAR_SERIALIZERS.get(agent_type)
@@ -457,6 +627,9 @@ def _generate_bytes(agent_type: str, result: dict, fmt: str) -> bytes:
 
 
 def _title_from(result: dict, agent_type: str) -> str:
+    if agent_type == "grc_policy_expert":
+        org = result.get("organization", "Client")
+        return f"{org} GRC Policy Document"
     titles = {
         "risk_assessment":       "Risk Assessment Report",
         "risk_insights":         "Risk Insights Report",

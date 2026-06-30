@@ -211,7 +211,7 @@ class KRIBreachDetectorFlow(Flow[KRIBreachDetectorState]):
 
     # ── Step 1: Analyst ──────────────────────────────────────────────────────
 
-    def _run_analyst(self, feedback: str = "") -> None:
+    def _run_analyst(self, feedback: str = "") -> None: 
         analyst = Agent(
             role="Senior KRI Pattern & Intelligence Analyst",
             goal=(
@@ -412,7 +412,7 @@ class KRIBreachDetectorFlow(Flow[KRIBreachDetectorState]):
                 "directly. You are intolerant of false causal reasoning, unsupported claims, "
                 "timeline inconsistencies, and explainability gaps. You output ONLY a single "
                 "valid JSON object — no preamble, no markdown, no extra text."
-            ),
+            ), 
             llm=self._llm(),
             memory=False,
             max_execution_time=180,

@@ -23,6 +23,7 @@ class AgentUrls(Enum):
     RISK_INSIGHTS = "/risk-insights"
     CONTROL_EFFECTIVENESS = "/control-effectiveness"
     KRI_BREACH_DETECTION = "/kri-breach-detection"
+    POLICY_EXPERT = "/policy-expert"
 
 
 class FileGenUrls(Enum):
