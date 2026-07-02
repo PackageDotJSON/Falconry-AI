@@ -1,0 +1,111 @@
+04. Enterprise GRC Policy Expert
+
+
+=> GIVEN INPUTS
+
+All internal user data will be given as an input to this agent. Mainly, this
+data comes from 2 sources:
+
+* The attachments that the user can upload then and there while triggering the
+bot. These attachments will be txt, pdf, word, xls, pptx, md, html docs. Give
+option to user to upload new docs / attach already-uploaded docs in the platform
+while calling the agent API via UI button.
+
+* The details of client data from DB including their core processes, cycles, sub-cycles,
+core products and services, taxonomy of the risk, appetite values, compliance
+info. Basically, all client data.
+  
+
+
+
+
+ 
+
+
+
+
+
+
+=> EXPECTED OUTPUT
+
+The agent should draft a document with the policy for the user:
+* PDF
+* Word
+* PPTX
+* TXT
+* MD 
+* HTML
+The user will decide on the UI while triggering the agent via UI button
+what particular type of  data format they need - we will show them an
+output format dropdown. Most probably, the user will choose 
+WORD and PDF formats. But give generous options.
+
+
+
+
+
+
+
+
+
+
+
+
+
+=> CREWAI DEVELOPMENT DETAILS
+
+* Use a flow here, not a crew.
+
+* Process type should be sequential, not parallel and certainly not
+hierarchical.
+
+* We will have a total of 4 agents in the system.
+
+* The agents will be: analyzer, policy drafter, content formatter, critic
+
+* Refer to the "skills" section of the CrewAI docs to give a skill to the
+content formatter agent of consistent document formatting in MD (with proper
+headings, sub-headings and more). This skill will be followed every time by the
+content formatter agent for all clients and their employees - no matter who
+generates the doc. Once the content is formatted in MD, convert it to word or
+PDF (user will decide this before calling the agent via UI) and send to the 
+front-end the final doc.
+
+* If the critic finds some issue, revise the step it found the issue at and also
+revise all next steps that depended on that output. Set a max limit of 1 critic
+revision only - not more than that, because the workflow will take very long in
+that case.
+       
+* HITL (Human-in-the-Loop) for a @human_feedback is not needed in this case.
+
+
+* Allow the analyzer + policy drafter (1st + 2nd agent) to use the internet. If it is
+unsure of the given output of the analyzer and wants to learn more via internet
+or clarify something, it will go ahead and get it done.
+
+ 
+
+
+ 
+
+  
+
+ 
+
+=> OVERALL FLOW
+
+[Uploaded / Attach Docs + DB Data]
+
+↓
+[Analysing Agent]
+↓
+[Policy Drafting Agent]
+↓
+[Content formatting agent]
+↓
+[Critic Agent] → [Feedback Loop (max 1 iterations)]
+↓
+[Document Generator package import] → [PDF / DOCX / PPTX generation]
+
+
+

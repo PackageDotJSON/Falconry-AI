@@ -152,7 +152,7 @@ def generate_pdf(title: str, sections: List[Dict[str, str]]) -> bytes:
             os.unlink(tmp_docx_path)
         if os.path.exists(tmp_pdf_path):
             os.unlink(tmp_pdf_path)
-
+   
 
 # ── PowerPoint (PPTX) ────────────────────────────────────────────────────────
 

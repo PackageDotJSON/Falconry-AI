@@ -23,6 +23,8 @@ from services.agents.risk_intelligence import run_risk_assessment
 from services.agents.risk_insights_flow import run_risk_insights
 from services.agents.control_effectiveness_flow import run_control_effectiveness
 from services.agents.kri_breach_detector_flow import run_kri_breach_detection
+from services.agents.grc_policy_flow import run_grc_policy_expert
+from models.grc_policy_models import GRCPolicyRequest
 from services.file_generation.serializers import build_agent_file_response
 
 agents_router = APIRouter(
@@ -153,6 +155,49 @@ async def kri_breach_detection_api(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"KRI breach detection workflow failed: {str(exc)}",
+        ) from exc
+
+
+@agents_router.post(AgentUrls.POLICY_EXPERT.value)
+async def grc_policy_expert_api(
+    request: GRCPolicyRequest,
+    _: None = Depends(validate_api_key),
+):
+    """
+    Enterprise GRC Policy Expert.
+
+    Accepts uploaded document text and/or structured client database data and
+    runs a 4-agent sequential CrewAI Flow (analyzer → policy drafter → content
+    formatter → critic) that produces a fully formatted policy document.
+
+    Returns JSON containing the Markdown policy when output_format is omitted.
+    When output_format is set (word / pdf / pptx / html / md / txt), returns
+    the policy as a downloadable file. The file is also uploaded to the
+    configured object store when available (URL in X-File-URL header).
+
+    Response fields (JSON mode):
+    - analysis_summary     — detailed analysis of source data (analyzer)
+    - policy_draft         — plain-text policy content (policy drafter)
+    - formatted_policy_md  — final Markdown document (content formatter)
+    - critic_status        — Approved / Reviewed
+    - revised              — true if critic triggered a one-pass revision
+    - generated_at         — ISO 8601 timestamp
+    """
+    try:
+        result = await run_grc_policy_expert(request)
+        if request.output_format:
+            org = request.organization or "client"
+            stem = f"{org.lower().replace(' ', '_')}_grc_policy"
+            return build_agent_file_response(
+                "grc_policy_expert", result, request.output_format, stem
+            )
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GRC policy expert workflow failed: {str(exc)}",
         ) from exc
 
 

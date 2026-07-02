@@ -62,7 +62,7 @@ def upload_file(
         region = os.environ.get("AWS_S3_REGION", "us-east-1")
         endpoint = os.environ.get("AWS_S3_ENDPOINT_URL")
 
-        client = boto3.client(
+        client = boto3.client(      
             "s3",
             region_name=region,
             aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
@@ -76,7 +76,7 @@ def upload_file(
             Body=file_bytes,
             ContentType=content_type,
         )
-
+   
         # Build the public URL — prefer a custom base URL (e.g. CDN) if provided
         base_url = os.environ.get("AWS_S3_PUBLIC_BASE_URL")
         if base_url:
@@ -91,3 +91,4 @@ def upload_file(
         # Upload failure must never crash the API response — file bytes are
         # always returned to the caller regardless of object store state.
         return None
+
