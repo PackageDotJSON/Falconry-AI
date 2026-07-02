@@ -37,10 +37,13 @@ File generation:
 """
 
 import asyncio
+import json
 import os
 import time
 from datetime import datetime, timezone
 from typing import Optional
+from urllib import request as urllib_request
+from urllib.error import HTTPError, URLError
 
 import litellm
 from crewai import Agent, LLM
@@ -82,6 +85,51 @@ def _format_client_data(client_data: Optional[ClientData]) -> str:
     return "\n\n".join(sections) if sections else "No structured client data provided."
 
 
+def _build_regulatory_research_context(framework: str) -> tuple[str, bool]:
+    api_key = os.environ.get("SERPER_API_KEY")
+    if not api_key:
+        return "", False
+
+    query = (
+        f"{framework or 'GRC'} enterprise policy governance policy management "
+        "ownership review cadence approval mapped controls requirements"
+    )
+    body = json.dumps({"q": query, "num": 5}).encode("utf-8")
+    req = urllib_request.Request(
+        "https://google.serper.dev/search",
+        data=body,
+        headers={
+            "X-API-KEY": api_key,
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return "", False
+
+    organic_results = payload.get("organic") or []
+    lines = [
+        "External regulatory and policy-governance context from Serper search.",
+        f"Search query: {query}",
+        "Use this only as supplemental context. The client database data remains authoritative.",
+    ]
+
+    for index, item in enumerate(organic_results[:5], start=1):
+        title = item.get("title") or "Untitled result"
+        snippet = item.get("snippet") or "No snippet available."
+        link = item.get("link") or ""
+        lines.append(f"{index}. {title}\n   Summary: {snippet}\n   Source: {link}")
+
+    if len(lines) <= 3:
+        return "", False
+
+    return "\n".join(lines), True
+
+
 # ── Flow state ─────────────────────────────────────────────────────────────────
 
 class GRCPolicyState(BaseModel):
@@ -90,6 +138,8 @@ class GRCPolicyState(BaseModel):
     client_data_text: str = ""
     organization: str = ""
     framework: str = "ISO 31000"
+    regulatory_research_context: str = ""
+    search_used: bool = False
 
     # Agent outputs
     analysis: str = ""          # Analyzer — detailed textual summary
@@ -185,6 +235,15 @@ class GRCPolicyFlow(Flow[GRCPolicyState]):
             f"--- END OF CLIENT DATA ---"
         )
 
+    def _regulatory_research_block(self) -> str:
+        if not self.state.regulatory_research_context:
+            return ""
+        return (
+            "\n\n--- SUPPLEMENTAL REGULATORY RESEARCH CONTEXT ---\n"
+            f"{self.state.regulatory_research_context}\n"
+            "--- END OF SUPPLEMENTAL REGULATORY RESEARCH CONTEXT ---"
+        )
+
     # ── Step 1: Analyzer ──────────────────────────────────────────────────────
 
     def _run_analysis(self, feedback: str = "") -> None:
@@ -202,12 +261,11 @@ class GRCPolicyFlow(Flow[GRCPolicyState]):
                 "across industries. You produce well-organized summaries that form the definitive "
                 "foundation for policy drafting — highlighting critical points, flagging data gaps, "
                 "and preserving relationships between processes, risks, and compliance requirements "
-                "for full audit traceability. When you are uncertain about a regulatory reference "
-                "or compliance framework, you use your web search capability to verify before "
-                "including it in your summary."
+                "for full audit traceability. Use the supplemental regulatory research context "
+                "when it is provided, but treat the client database data as authoritative."
             ),
             llm=self._llm(),
-            tools=self._get_search_tools(),
+            tools=[],
             memory=False,
             max_execution_time=240,
             verbose=True,
@@ -235,7 +293,12 @@ class GRCPolicyFlow(Flow[GRCPolicyState]):
             "- Write multiple paragraphs with bullet points inside them.\n"
             "- CAPITALIZE and **bold** key terms and critical items for emphasis.\n"
             "- Be thorough; the Policy Drafter depends entirely on your summary.\n\n"
+            "Tool use:\n"
+            "- You do not have live tool access in this workflow.\n"
+            "- Use supplemental regulatory research context only if it is provided below.\n"
+            "- Return the final analysis directly. Do not write internal reasoning or search intentions.\n\n"
             f"{self._source_data_block()}"
+            f"{self._regulatory_research_block()}"
             f"{self._feedback_block(feedback)}"
         )
 
@@ -260,11 +323,11 @@ class GRCPolicyFlow(Flow[GRCPolicyState]):
                 "actionable policy content with clear logical flow, prioritized critical points, "
                 "and practical guidance. You do NOT apply formatting, markdown, or visual styling "
                 "at this stage — that is handled downstream. When you need to reference a specific "
-                "regulation, standard, or industry best practice you are unsure of, you use your "
-                "web search capability to verify accuracy before including it."
+                "regulation, standard, or industry best practice, rely on the Analyzer summary "
+                "and any supplemental regulatory research context provided by the workflow."
             ),
             llm=self._llm(),
-            tools=self._get_search_tools(),
+            tools=[],
             memory=False,
             max_execution_time=240,
             verbose=True,
@@ -289,9 +352,12 @@ class GRCPolicyFlow(Flow[GRCPolicyState]):
             "4. Logically sequence content: high-level overview → core processes → "
             "products → risks → compliance → appendices / references.\n"
             "5. Address any gaps or inconsistencies flagged by the Analyzer explicitly.\n\n"
+            "Tool use: you do not have live tool access. Return the policy draft directly; "
+            "do not write internal reasoning or search intentions.\n\n"
             "--- ANALYZER SUMMARY ---\n"
             f"{self.state.analysis}\n"
             "--- END OF ANALYZER SUMMARY ---"
+            f"{self._regulatory_research_block()}"
             f"{self._feedback_block(feedback)}"
         )
 
@@ -529,6 +595,7 @@ async def run_grc_policy_expert(request: GRCPolicyRequest) -> dict:
     documents_text = request.documents_text or "No uploaded documents provided."
     client_data_text = _format_client_data(request.client_data)
     organization = request.organization or "Client"
+    regulatory_research_context, search_used = _build_regulatory_research_context(request.framework)
 
     await loop.run_in_executor(
         None,
@@ -537,6 +604,8 @@ async def run_grc_policy_expert(request: GRCPolicyRequest) -> dict:
             "client_data_text": client_data_text,
             "organization":    organization,
             "framework":       request.framework,
+            "regulatory_research_context": regulatory_research_context,
+            "search_used": search_used,
         }),
     )
 
@@ -550,5 +619,6 @@ async def run_grc_policy_expert(request: GRCPolicyRequest) -> dict:
         "formatted_policy_md": s.formatted_policy_md,
         "critic_status":       "Approved" if s.critic_passed else "Reviewed",
         "revised":             s.revision_count > 0,
+        "search_used":         s.search_used,
         "generated_at":        datetime.now(timezone.utc).isoformat(),
     }
